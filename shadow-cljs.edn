@@ -1,19 +1,20 @@
 {:source-paths ["src"]
 
- :dependencies [[funcool/promesa "4.0.2"]]
+ :dependencies [[funcool/promesa "8.0.450"]]
 
  :builds
  {:package {:target :node-library
-            ;; Uncomment if you want to generate a self-contained
-            ;; JS file that does not require node_modules at all.
-            ; :js-options {:js-provider :shadow
-            ;              :keep-native-requires true
-            ;              :keep-as-require #{"atom"}}
+            :js-options {:js-provider :shadow
+                         :keep-native-requires true
+                         :keep-as-require #{"atom"}}
 
             :compiler-options {:infer-externs :auto}
-            :exports {:activate cljs-skeleton.core/activate
-                      :deactivate cljs-skeleton.core/deactivate
+            :exports {:activate generic-lsp.core/activate
+                      :deactivate generic-lsp.core/deactivate
 
                       :status-bar-consumer
-                      cljs-skeleton.status-bar/consumer}
+                      generic-lsp.status-bar/consumer
+
+                      :complete-provider
+                      generic-lsp.complete/provider}
             :output-to "lib/main.js"}}}

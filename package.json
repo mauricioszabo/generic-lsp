@@ -1,19 +1,32 @@
 {
-  "name": "cljs-skeleton",
+  "name": "generic-lsp",
   "main": "./lib/main.js",
   "version": "0.0.0",
   "description": "A short description of your package",
   "keywords": [],
   "activationCommands": {
-    "atom-workspace": "cljs-skeleton:activate"
+    "atom-workspace": "generic-lsp:start-LSP-server"
   },
-  "repository": "https://github.com/mauricioszabo/cljs-skeleton",
+  "repository": "https://github.com/mauricioszabo/generic-lsp",
+  "providedServices": {
+    "autocomplete.provider": {
+      "versions": {
+        "4.0.0": "complete_provider"
+      }
+    }
+  },
+  "consumedServices": {
+    "status-bar": {
+      "versions": {
+        "^1.0.0": "status_bar_consumer"
+      }
+    }
+  },
   "license": "MIT",
   "engines": {
     "atom": ">=1.0.0 <2.0.0"
   },
-  "dependencies": {},
   "devDependencies": {
-    "shadow-cljs": "^2.8.83"
+    "shadow-cljs": "^2.20.1"
   }
 }
