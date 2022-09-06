@@ -63,23 +63,3 @@
 
 (defn stop-server! [server]
   (.kill ^js (:server @server)))
-
-#_
-(def s (run-server "clojure-lsp" {:on-unknown-command prn}))
-
-#_(stop-server! s)
-
-#_
-(send! s "initialize" {
-                       "processId" nil
-                       "clientInfo" {"name" "Pulsar"}
-                       "locale" "UTF-8",
-                       "capabilities" "",
-                       "rootUri" "file:///home/mauricio/projects/pulsar_repos/atom-generic-lsp"
-                       "workspaceFolders" [{"uri" "file:///home/mauricio/projects/pulsar_repos/atom-generic-lsp"
-                                            "name" "atom-generic-lsp"}]})
-
-#_
-(def lsp
-  (doto (cp/spawn "clojure-lsp")
-        (.. -stdout (on "data" #(println (str %))))))
