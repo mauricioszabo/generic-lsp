@@ -1,9 +1,8 @@
 (ns generic-lsp.core
   (:require [generic-lsp.known-servers :as servers]
             [generic-lsp.commands :as cmds]
+            [generic-lsp.atom :refer [subscriptions]]
             ["atom" :refer [CompositeDisposable]]))
-
-(def subscriptions (atom (CompositeDisposable.)))
 
 (defonce atom-state (atom nil))
 

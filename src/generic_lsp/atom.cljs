@@ -1,4 +1,7 @@
-(ns generic-lsp.atom)
+(ns generic-lsp.atom
+  (:require ["atom" :refer [CompositeDisposable]]))
+
+(defonce subscriptions (atom (CompositeDisposable.)))
 
 (defn info! [message]
   (.. js/atom -notifications (addInfo message)))
