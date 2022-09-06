@@ -20,6 +20,11 @@
       "versions": {
         "^1.0.0": "status_bar_consumer"
       }
+    },
+    "linter-indie": {
+      "versions": {
+        "2.0.0": "linter_consumer"
+      }
     }
   },
   "license": "MIT",

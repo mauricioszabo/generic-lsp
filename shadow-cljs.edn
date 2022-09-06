@@ -6,7 +6,7 @@
  {:package {:target :node-library
             :js-options {:js-provider :shadow
                          :keep-native-requires true
-                         :keep-as-require #{"atom"}}
+                         :keep-as-require #{"atom" "url"}}
 
             :compiler-options {:infer-externs :auto}
             :exports {:activate generic-lsp.core/activate
@@ -16,5 +16,11 @@
                       generic-lsp.status-bar/consumer
 
                       :complete-provider
-                      generic-lsp.complete/provider}
+                      generic-lsp.complete/provider
+
+                      :linter-provider
+                      generic-lsp.linter/provider
+
+                      :linter-consumer
+                      generic-lsp.linter/consumer}
             :output-to "lib/main.js"}}}
