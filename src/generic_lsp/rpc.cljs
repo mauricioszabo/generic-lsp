@@ -37,7 +37,7 @@
         server))))
 
 (defn spawn-server! [command {:keys [args on-command on-unknown-command]}]
-  (let [server (cp/spawn command (into-array args))
+  (let [server (cp/spawn command (into-array args) #js {:cwd (first (.. js/atom -project getPaths))})
         res (atom {:server server
                    :on-command (or on-command identity)
                    :on-unknown-command (or on-unknown-command identity)
@@ -56,10 +56,22 @@
                     js/JSON.stringify)
         ^js s (:server @server)
         p (p/deferred)]
-    (.. s -stdin (write (str "Content-Length: " (count message) "\r\n"
-                             "\r\n" message)))
-   (swap! server assoc-in [:pending id] p)
-   p))
+
+    (.. s -stdin (write (str "Content-Length: " (count message) "\r\n\r\n" message)))
+    (swap! server assoc-in [:pending id] p)
+    p))
+
+(defn notify! [server command params]
+  (let [message (-> {:jsonrpc "2.0"
+                     :method command
+                     :params params}
+                    clj->js
+                    js/JSON.stringify)
+        ^js s (:server @server)]
+
+    (.. s -stdin (write (str "Content-Length: " (count message) "\r\n\r\n" message)))
+    nil))
+
 
 (defn stop-server! [server]
   (.kill ^js (:server @server)))
