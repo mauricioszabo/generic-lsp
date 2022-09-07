@@ -1,20 +1,16 @@
-# cljs-skeleton - a ClojureScript Atom package example code
+# Generic LSP - connect into anything!
 
-This code is meant only as a skeleton to generate ClojureScript packages. It is not
-meant to be used.
+LSP (Language Server Protocol) is a generic way for any editor to interact with any programming language. Originally drafted for VSCode, LSP is a protocol that allows any editor to have the same capabilities like Autocomplete, Go To Var Definition/Declaration, etc.
 
-To start a project with this template, clone it to some folder normally, rename all entries of `cljs-skeleton` to, for example, `my-plugin` (remember to fix folder names too!) and run `apm link my-plugin` to link the local copy to the Atom package folder.
+Atom/Pulsar does not have the same capabilities for LSP than other editor, so this package tries to fix that gap by adding "Generic LSP" capabilities: with some easy configurations, it is possible to fire up a LSP server (via command line for now) and have autocomplete, go to var definition, linter, and other niceties that other editors take for granted.
 
-To start compilation, run: `npm install` then `npx shadow-cljs watch package`. Please wait until Shadow-CLJS compiles the first version before trying to run `Activate` command, otherwise you'll get an error and will need to restart Atom before you can make changes.
+This package is meant to be a "generic" LSP. It will **not install** any LSP server for you (you need to install yourself, and have it on your PATH, or configure the path inside the package's configuration) and it will **not install** additional packages for you (but it does integrate with existing known packages like Linter and Linter UI for example)
 
-All "interactive coding" that ClojureScript is famous for works for Atom plug-ins. It also means that after saving any code, you'll be able to see changes on your commands, subscriptions, and so on (so it reloads all your callbacks too!)
+## What is implemented
 
-## Common bugs:
-
-### Strange errors on activation (`$cljs is not defined`):
-
-You can only develop a SINGLE ClojureScript package per time. If you have multiple
-Atom packages written in ClojureScript, compile one as a release build (with
-`shadow-cljs release <build-id>` for example) then develop the other normally.
+- Linter (needs the `linter` package)
+- Go To Definition / Declaration / Type Declaration (each one is a specific command for now)
+- Autocomplete (needs the `autocomplete-plus` package, it's probably already installed)
+- Known LSP servers can be started (we still don't have configuration wired up)
 
 ![A screenshot of your package](https://f.cloud.github.com/assets/69169/2290250/c35d867a-a017-11e3-86be-cd7c5bf3ff9b.gif)
