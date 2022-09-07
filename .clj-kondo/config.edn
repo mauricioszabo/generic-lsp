@@ -1,0 +1,9 @@
+{:linters
+ {:unused-private-var {:exclude [generic-lsp.linter/reload-linter
+                                 generic-lsp.core/reset-subs
+                                 generic-lsp.core/re-activate]}}
+
+ {:unused-public-var {:exclude [generic-lsp.linter/reload-linter
+                                generic-lsp.status-bar/consumer
+                                generic-lsp.complete/provider]}}
+ :lint-as {promesa.core/let clojure.core/let}}
