@@ -2,23 +2,9 @@
   (:require [generic-lsp.atom :refer [subscriptions]]
             ["url" :as url]))
 
-(defn- lint! [_text-editor]
-  (prn :LINTING))
-
-(defn provider []
-  (prn :PROVIDE?)
-  #js {:name "generic-lsp-linter"
-       :scope "file"
-       :lints-on-change true
-       :grammarScopes #js ["source"]
-
-       :lint (fn [text-editor]
-               (lint! text-editor))})
-
 (defonce service (atom nil))
 (defonce linter (atom nil))
 (defn consumer [s]
-  (prn :LINTER? s)
   (reset! service s)
   (let [new-linter (s #js {:name "Generic LSP Linter"})]
     (.add @subscriptions new-linter)
@@ -26,7 +12,7 @@
 
 (defn- ^:dev/after-load reload-linter []
   (when-let [s @service]
-    (prn :resetting-linter)
+    (. ^js @linter clearMessages)
     (consumer s)))
 
 (def ^:private severities ["error" "warning" "info"])
@@ -50,5 +36,6 @@
                                  :excerpt (:message diag)}))
                          clj->js)))))
 
-#_
-(. @linter clearMessages)
+;; FIXME: clear only messages for specific lang
+(defn clear-messages! [_language]
+  (. ^js @linter clearMessages))
