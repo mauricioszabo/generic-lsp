@@ -18,9 +18,6 @@
                       :complete-provider
                       generic-lsp.complete/provider
 
-                      :linter-provider
-                      generic-lsp.linter/provider
-
                       :linter-consumer
                       generic-lsp.linter/consumer}
             :output-to "lib/main.js"}}}
