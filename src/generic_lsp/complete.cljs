@@ -1,11 +1,9 @@
 (ns generic-lsp.complete)
 
-(defonce service (atom nil))
+(defn- suggestions [data]
+  (prn :suggestions data))
 
-(defn- suggestions [data])
-  ; (prn :suggestions data))
-
-(defn- detailed-suggestion [data])
+(defn- detailed-suggestion [_data])
   ; (prn :detailed data))
 
 (defn provider []
