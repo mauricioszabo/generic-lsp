@@ -178,18 +178,10 @@
 (defn autocomplete [^js editor]
   (let [lang (.. editor getGrammar -name)
         position (.getCursorBufferPosition editor)
-        uri (some-> editor .getPath file->uri)
-        version (get @uri-versions uri 0)]
+        uri (some-> editor .getPath file->uri)]
     (when (have-capability? lang :completionProvider)
       (p/do!
        (send-command! lang "textDocument/completion"
                       {:textDocument {:uri uri}
                        :position {:line (.-row position)
                                   :character (.-column position)}})))))
-
-#_
-(p/let [a (autocomplete (js/ce))]
-  (prn :C a))
-#_
-(p/let [res (autocomplete (js/ce))]
-  (->> res :result (take 3)))
