@@ -5,7 +5,7 @@
 (declare treat-out)
 (defn- deliver-result! [server predefined-content-size]
   (let [content (subs (:buffer server) 0 predefined-content-size)
-
+        ; _ (println "content <--" content)
         result (-> content js/JSON.parse (js->clj :keywordize-keys true))
         prom (get-in server [:pending (:id result)])]
 
@@ -44,6 +44,7 @@
                    :pending {}
                    :buffer ""})]
     (.. server -stdout (on "data" #(swap! res treat-out %)))
+    ; (.. server -stderr (on "data" #(println (str  %))))
     res))
 
 (defn send! [server command params]
@@ -57,6 +58,7 @@
         ^js s (:server @server)
         p (p/deferred)]
 
+    ; (println "-->" message)
     (.. s -stdin (write (str "Content-Length: " (count message) "\r\n\r\n" message)))
     (swap! server assoc-in [:pending id] p)
     p))
@@ -69,6 +71,7 @@
                     js/JSON.stringify)
         ^js s (:server @server)]
 
+    ; (println "-->" message)
     (.. s -stdin (write (str "Content-Length: " (count message) "\r\n\r\n" message)))
     nil))
 

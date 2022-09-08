@@ -4,22 +4,34 @@
             ["atom" :refer [CompositeDisposable]]))
 
 (defonce atom-state (atom nil))
+(defonce open-paths (atom {}))
 
 (defn- info! [message]
   (.. js/atom -notifications (addInfo message)))
 
+(def conjset (fnil conj #{}))
 (defn- text-editor-observer [^js text-editor]
-  (.add @subscriptions
-        (. text-editor onDidStopChanging #(cmds/sync-document! text-editor (.-changes ^js %))))
-  (.add @subscriptions
-        (. text-editor onDidSave #(cmds/save-document! text-editor))))
+  (let [path (.getPath text-editor)]
+    (swap! open-paths update path conjset text-editor)
+    (when (= 1 (count (get @open-paths path)))
+      (cmds/open-document! text-editor))
+
+    (.add @subscriptions
+          (. text-editor onDidDestroy (fn []
+                                        (swap! open-paths update disj text-editor)
+                                        (when (zero? (count (get @open-paths path)))
+                                          (cmds/close-document! text-editor)))))
+    (.add @subscriptions
+          (. text-editor onDidStopChanging #(cmds/sync-document! text-editor (.-changes ^js %))))
+    (.add @subscriptions
+          (. text-editor onDidSave #(cmds/save-document! text-editor)))))
 
 (defn activate [state]
   (reset! atom-state state)
   (.add @subscriptions (.. js/atom -commands
                            (add "atom-text-editor"
                                 "generic-lsp:start-LSP-server"
-                                #(cmds/start-lsp-server!))))
+                                #(cmds/start-lsp-server! @open-paths))))
   (.add @subscriptions (.. js/atom -commands
                            (add "atom-text-editor"
                                 "generic-lsp:stop-LSP-server"
@@ -41,7 +53,10 @@
   (.dispose ^js @subscriptions))
 
 (defn- ^:dev/before-load reset-subs []
-  (deactivate @atom-state))
+  (deactivate @atom-state)
+  (doseq [[_ editor] @open-paths]
+    (some-> editor first cmds/close-document!))
+  (reset! open-paths {}))
 
 (defn- ^:dev/after-load re-activate []
   (reset! subscriptions (CompositeDisposable.))
