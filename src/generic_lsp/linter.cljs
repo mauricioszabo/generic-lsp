@@ -19,9 +19,9 @@
 
 (defn set-message! [lsp-message]
   (let [^js linter @linter
-        diags (-> lsp-message :diagnostics not-empty)
+        diags (:diagnostics lsp-message)
         file (-> lsp-message :uri url/fileURLToPath)]
-    (when (and linter diags)
+    (when linter
       (.setMessages linter
                     file
                     (->> diags
