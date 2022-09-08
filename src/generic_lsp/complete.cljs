@@ -2,11 +2,36 @@
   (:require [promesa.core :as p]
             [generic-lsp.commands :as cmds]))
 
-; {:editor #object[TextEditor [object Object]],
-;  :bufferPosition #object[Point (2, 2)],
-;  :scopeDescriptor #object[ScopeDescriptor .source.clojure .meta.symbol.clojure],
-;  :prefix "su",
-;  :activatedManually true
+;; TODO: Atom/Pulsar does not have icons for all elements that are available on LSP,
+;; and there are some that are not used at all, like builtin, import and require.
+;; Maybe we need to add icons for these that are not defined. These are keywords
+;; below, for us to be able to know they are not present on Atom yet
+(def ^:private types
+  [""
+   "method"
+   "function"
+   :constructor
+   :field
+   "variable"
+   "class"
+   :interface
+   :module
+   "property"
+   :unit
+   "value"
+   :enum
+   "keyword"
+   "snippet"
+   "tag"
+   :file
+   :reference
+   :folder
+   :enummember
+   "constant"
+   :struct
+   :event
+   "builtin"
+   "type"])
 
 (defn- get-prefix! [^js editor]
   (let [^js cursor (-> editor .getCursors first)
@@ -27,13 +52,10 @@
          :result
          (map (fn [result]
                 {:text (:label result)
-                 :type (:kind result)
+                 :type (some-> result :kind dec types)
                  :replacementPrefix prefix}))
          not-empty
          clj->js)))
-
-#_
-:foo
 
 (defn- detailed-suggestion [_data])
   ; (prn :detailed data))
