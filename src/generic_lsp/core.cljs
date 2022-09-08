@@ -18,7 +18,7 @@
 
     (.add @subscriptions
           (. text-editor onDidDestroy (fn []
-                                        (swap! open-paths update disj text-editor)
+                                        (swap! open-paths update path disj text-editor)
                                         (when (zero? (count (get @open-paths path)))
                                           (cmds/close-document! text-editor)))))
     (.add @subscriptions
