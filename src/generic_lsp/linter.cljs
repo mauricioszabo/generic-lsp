@@ -38,4 +38,5 @@
 
 ;; FIXME: clear only messages for specific lang
 (defn clear-messages! [_language]
-  (. ^js @linter clearMessages))
+  (when-let [^js linter @linter]
+    (.clearMessages linter)))
