@@ -13,6 +13,16 @@
       "versions": {
         "4.0.0": "complete_provider"
       }
+    },
+    "intentions:list": {
+      "versions": {
+        "1.0.0": "intentions_list"
+      }
+    },
+    "intentions:highlight": {
+      "versions": {
+        "2.0.0": "intentions_provide"
+      }
     }
   },
   "consumedServices": {
