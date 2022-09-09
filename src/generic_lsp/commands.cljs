@@ -14,7 +14,7 @@
 
 (defmulti callback-command :method)
 
-(defmethod callback-command "textDocument/publishDiagnostics" [{:keys [params]}]
+(defmethod callback-command "textDocument/publishDiagnostics" [{:keys [params]} _lang]
   (linter/set-message! params))
 
 (defn respond! [language message]
@@ -28,7 +28,7 @@
                                 #js [(:line end) (:character end)]]
                            (:newText change))))
 
-(defn- apply-changes-in-file [id file changes]
+(defn- apply-changes-in-file [id language file changes]
   (p/let [contents (. promised-fs readFile file)
           ^js buffer (new TextBuffer (str contents))]
     (doseq [change changes
@@ -37,20 +37,23 @@
                        #js [#js [(:line start) (:character start)]
                             #js [(:line end) (:character end)]]
                        (:newText change)))
-    (. promised-fs writeFile file (.getText buffer))))
+    (. promised-fs writeFile file (.getText buffer))
+    (when id (respond! language {:id id, :params {:applied true}}))))
 
-(defmethod callback-command "workspace/applyEdit" [{:keys [params id]}]
-  (doseq [[file changes] (-> params :edit :changes)
-          :let [file (-> file str (subs 1) url/fileURLToPath)
-                ^js editor (-> @atom/open-paths (get file) first)]]
-
+(defn- apply-changes! [id language file changes]
+  (let [^js editor (-> @atom/open-paths (get file) first)]
     (if editor
       (.transact editor
         #(doseq [change changes] (apply-change-in-editor editor change)
-          (respond! (.. editor getGrammar -name) {:id id, :params {:applied true}})))
-      (apply-changes-in-file id file changes))))
+          (when id (respond! language {:id id, :params {:applied true}}))))
+      (apply-changes-in-file id language file changes))))
 
-(defmethod callback-command :default [params]
+(defmethod callback-command "workspace/applyEdit" [{:keys [params id]} language]
+  (doseq [[file changes] (-> params :edit :changes)
+          :let [file (-> file str (subs 1) url/fileURLToPath)]]
+    (apply-changes! id language file changes)))
+
+(defmethod callback-command :default [params _language]
   (prn :UNUSED-COMMAND params))
 
 (defn- file->uri [file] (str (url/pathToFileURL file)))
@@ -76,6 +79,8 @@
                                                                                            :documentationFormat ["markdown" "plaintext"]
                                                                                            :resolveSupport {:properties ["documentation" "detail" "additionalTextEdits"]}}}
                                                              :declaration {}
+                                                             :formatting {}
+                                                             :rangeFormatting {}
                                                              :definition {}
                                                              :codeAction {}
                                                              :typeDefinition {}}}
@@ -102,7 +107,7 @@
                             (assoc (:params server)
                                    :args (:args server [])
                                    ; :on-command #(println "<--" %)
-                                   :on-unknown-command callback-command))]
+                                   :on-unknown-command #(callback-command % language)))]
                 (init-lsp language server open-editors)
                 (atom/info! (str "Connected server for " language)))
        (atom/error! (str "Don't know how to run a LSP server for " language))))))
@@ -162,11 +167,11 @@
 
 (defn rename! [^js editor old-path]
   (let [language (.. editor getGrammar -name)
-        path (.getPath editor)]
-    (let [new-uri (file->uri path)
-          old-uri (file->uri old-path)]
-      (notify! language "workspace/didRenameFiles"
-               {:files [{:oldUri old-uri :newUri new-uri}]}))))
+        path (.getPath editor)
+        new-uri (file->uri path)
+        old-uri (file->uri old-path)]
+    (notify! language "workspace/didRenameFiles"
+             {:files [{:oldUri old-uri :newUri new-uri}]})))
 
 (defn save-document! [^js editor]
   (when-let [path (.getPath editor)]
@@ -253,3 +258,23 @@
                                       :end pos}
                               :context {:diagnostics []}})]
     (:result res)))
+
+(defn format-doc! []
+  (let [lang (curr-editor-lang)
+        editor (.. js/atom -workspace getActiveTextEditor)
+        position (.getSelectedBufferRange editor)
+        tab-size (.. js/atom -config (get "editor.tabLength"))
+        spaces? (not= "hard" (.. js/atom -config (get "editor.tabType")))]
+    (if (have-capability? lang :documentRangeFormattingProvider)
+      (p/let [res (send-command! lang "textDocument/rangeFormatting"
+                                 {:textDocument {:uri (-> editor .getPath file->uri)}
+                                  :range {:start {:line (.. position -start -row)
+                                                  :character (.. position -start -column)}
+                                          :end {:line (.. position -end -row)
+                                                :character (.. position -end -column)}}
+                                  :options {:tabSize tab-size
+                                            :insertSpaces spaces?}})]
+
+        (when-let [changes (-> res :result not-empty)]
+          (apply-changes! nil lang (.getPath editor) changes)))
+      (atom/warn! (str "Language " lang " does not support formatting")))))
