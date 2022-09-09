@@ -47,34 +47,27 @@
     ; (.. server -stderr (on "data" #(println (str  %))))
     res))
 
-(defn send! [server command params]
-  (let [id (str (gensym "req-"))
-        message (-> {:jsonrpc "2.0"
-                     :id id
-                     :method command
-                     :params params}
-                    clj->js
-                    js/JSON.stringify)
-        ^js s (:server @server)
-        p (p/deferred)]
-
-    ; (println "-->" message)
-    (.. s -stdin (write (str "Content-Length: " (count message) "\r\n\r\n" message)))
-    (swap! server assoc-in [:pending id] p)
-    p))
-
-(defn notify! [server command params]
-  (let [message (-> {:jsonrpc "2.0"
-                     :method command
-                     :params params}
+(defn raw-ish-send! [server params]
+  (let [message (-> params
+                    (assoc :jsonrpc "2.0")
                     clj->js
                     js/JSON.stringify)
         ^js s (:server @server)]
-
     ; (println "-->" message)
     (.. s -stdin (write (str "Content-Length: " (count message) "\r\n\r\n" message)))
     nil))
 
+(defn send! [server command params]
+  (let [id (str (gensym "req-"))
+        p (p/deferred)]
+    (raw-ish-send! server {:id id
+                           :method command
+                           :params params})
+    (swap! server assoc-in [:pending id] p)
+    p))
+
+(defn notify! [server command params]
+  (raw-ish-send! server {:method command, :params params}))
 
 (defn stop-server! [server]
   (.kill ^js (:server @server)))

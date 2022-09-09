@@ -26,3 +26,5 @@
         position (clj->js (cond-> {:initialLine line :searchAllPanes true}
                                   column (assoc :initialColumn column)))]
     (.. js/atom -workspace (open file-name position))))
+
+(defonce open-paths (atom {}))

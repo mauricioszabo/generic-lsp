@@ -4,15 +4,51 @@
             [generic-lsp.atom :as atom]
             [generic-lsp.known-servers :as known]
             [generic-lsp.linter :as linter]
+            ["atom" :refer [TextBuffer]]
+            ["fs" :as fs]
             ["url" :as url]
             ["path" :as path]))
 
+(def ^:private promised-fs (. fs -promises))
 (defonce loaded-servers (atom {}))
 
 (defmulti callback-command :method)
 
 (defmethod callback-command "textDocument/publishDiagnostics" [{:keys [params]}]
   (linter/set-message! params))
+
+(defn respond! [language message]
+  (when-let [server (get-in @loaded-servers [language :server])]
+    (rpc/raw-ish-send! server message)))
+
+(defn- apply-change-in-editor [^js editor, change]
+  (let [{:keys [start end]} (:range change)]
+    (.setTextInBufferRange editor
+                           #js [#js [(:line start) (:character start)]
+                                #js [(:line end) (:character end)]]
+                           (:newText change))))
+
+(defn- apply-changes-in-file [id file changes]
+  (p/let [contents (. promised-fs readFile file)
+          ^js buffer (new TextBuffer (str contents))]
+    (doseq [change changes
+            :let [{:keys [start end]} (:range change)]]
+      (.setTextInRange buffer
+                       #js [#js [(:line start) (:character start)]
+                            #js [(:line end) (:character end)]]
+                       (:newText change)))
+    (. promised-fs writeFile file (.getText buffer))))
+
+(defmethod callback-command "workspace/applyEdit" [{:keys [params id]}]
+  (doseq [[file changes] (-> params :edit :changes)
+          :let [file (-> file str (subs 1) url/fileURLToPath)
+                ^js editor (-> @atom/open-paths (get file) first)]]
+
+    (if editor
+      (.transact editor
+        #(doseq [change changes] (apply-change-in-editor editor change)
+          (respond! (.. editor getGrammar -name) {:id id, :params {:applied true}})))
+      (apply-changes-in-file id file changes))))
 
 (defmethod callback-command :default [params]
   (prn :UNUSED-COMMAND params))
@@ -41,6 +77,7 @@
                                                                                            :resolveSupport {:properties ["documentation" "detail" "additionalTextEdits"]}}}
                                                              :declaration {}
                                                              :definition {}
+                                                             :codeAction {}
                                                              :typeDefinition {}}}
                                :rootUri (-> workpace-dirs first :uri)
                                :workspaceFolders workpace-dirs})]
@@ -200,8 +237,19 @@
                                #js [7 31]]
                           "(ns generic-lsp.commands\n  (:require\n   [\"path\" :as path]\n   [\"url\" :as url]\n   [generic-lsp.atom :as atom]\n   [generic-lsp.known-servers :as known]\n   [generic-lsp.linter :as linter]\n   [generic-lsp.rpc :as rpc]\n   [promesa.core :as p]))"))
 
-#_
-(send-command! "Clojure" "workspace/executeCommand"
-               {:command "clean-ns"
-                :arguments ["file:///home/mauricio/projects/pulsar_repos/atom-generic-lsp/src/generic_lsp/commands.cljs"
-                            10 10]})
+(defn exec-command [lang command arguments]
+  (send-command! lang
+                 "workspace/executeCommand"
+                 {:command command
+                  :arguments arguments}))
+
+(defn code-actions [^js editor, ^js position]
+  (p/let [pos {:line (.-row position) :character (.-column position)}
+          uri (-> editor .getPath file->uri)
+          res (send-command! (.. editor getGrammar -name)
+                             "textDocument/codeAction"
+                             {:textDocument {:uri uri}
+                              :range {:start pos
+                                      :end pos}
+                              :context {:diagnostics []}})]
+    (:result res)))
