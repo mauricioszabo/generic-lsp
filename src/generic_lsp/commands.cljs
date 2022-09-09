@@ -123,6 +123,14 @@
                                    :version (inc version)}
                     :contentChanges [{:text (.getText editor)}]}))))))
 
+(defn rename! [^js editor old-path]
+  (let [language (.. editor getGrammar -name)
+        path (.getPath editor)]
+    (let [new-uri (file->uri path)
+          old-uri (file->uri old-path)]
+      (notify! language "workspace/didRenameFiles"
+               {:files [{:oldUri old-uri :newUri new-uri}]}))))
+
 (defn save-document! [^js editor]
   (when-let [path (.getPath editor)]
     (let [language (.. editor getGrammar -name)
@@ -185,3 +193,15 @@
                       {:textDocument {:uri uri}
                        :position {:line (.-row position)
                                   :character (.-column position)}})))))
+
+#_
+(.. js/atom -workspace (getActiveTextEditor)
+    (setTextInBufferRange #js [#js [0 0]
+                               #js [7 31]]
+                          "(ns generic-lsp.commands\n  (:require\n   [\"path\" :as path]\n   [\"url\" :as url]\n   [generic-lsp.atom :as atom]\n   [generic-lsp.known-servers :as known]\n   [generic-lsp.linter :as linter]\n   [generic-lsp.rpc :as rpc]\n   [promesa.core :as p]))"))
+
+#_
+(send-command! "Clojure" "workspace/executeCommand"
+               {:command "clean-ns"
+                :arguments ["file:///home/mauricio/projects/pulsar_repos/atom-generic-lsp/src/generic_lsp/commands.cljs"
+                            10 10]})

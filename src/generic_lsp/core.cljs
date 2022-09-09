@@ -10,21 +10,43 @@
   (.. js/atom -notifications (addInfo message)))
 
 (def conjset (fnil conj #{}))
-(defn- text-editor-observer [^js text-editor]
-  (let [path (.getPath text-editor)]
+
+(defn- remove-editor [^js text-editor]
+  (when-let [path (.getPath text-editor)]
+    (swap! open-paths update path disj text-editor)
+    (when (zero? (count (get @open-paths path)))
+      (cmds/close-document! text-editor))))
+
+(defn- add-editor [^js text-editor]
+  (when-let [path (.getPath text-editor)]
     (swap! open-paths update path conjset text-editor)
     (when (= 1 (count (get @open-paths path)))
-      (cmds/open-document! text-editor))
+      (cmds/open-document! text-editor))))
 
-    (.add @subscriptions
-          (. text-editor onDidDestroy (fn []
-                                        (swap! open-paths update path disj text-editor)
-                                        (when (zero? (count (get @open-paths path)))
-                                          (cmds/close-document! text-editor)))))
-    (.add @subscriptions
-          (. text-editor onDidStopChanging #(cmds/sync-document! text-editor (.-changes ^js %))))
-    (.add @subscriptions
-          (. text-editor onDidSave #(cmds/save-document! text-editor)))))
+(defn- text-editor-observer [^js text-editor]
+  (add-editor text-editor)
+
+  (.add @subscriptions
+        (. text-editor onDidDestroy #(remove-editor text-editor)))
+  (.add @subscriptions
+        (. text-editor onDidStopChanging #(cmds/sync-document! text-editor (.-changes ^js %))))
+  (.add @subscriptions
+        (. text-editor onDidSave #(cmds/save-document! text-editor))))
+
+(defn- renamed-file [^js change]
+  (let [new-path (.-path change)
+        old-path (.-oldPath change)
+        editor-d (-> @open-paths (get new-path) first delay)]
+    (swap! open-paths #(-> %
+                           (assoc new-path (get % old-path))
+                           (dissoc old-path)))
+    (when @editor-d
+      (cmds/rename! @editor-d old-path))))
+
+(defn- make-changes [^js changes]
+  (doseq [change changes
+          :when (-> change .-action (= "renamed"))]
+    (renamed-file change)))
 
 (defn activate [state]
   (reset! atom-state state)
@@ -46,6 +68,8 @@
                            (add "atom-text-editor" "generic-lsp:go-to-type-definition"
                                 #(cmds/go-to-type-definition!))))
 
+  (.add @subscriptions
+        (.. js/atom -project (onDidChangeFiles make-changes)))
   (.add @subscriptions
         (.. js/atom -workspace (observeTextEditors #(text-editor-observer %)))))
 
