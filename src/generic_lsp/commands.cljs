@@ -38,14 +38,15 @@
                             #js [(:line end) (:character end)]]
                        (:newText change)))
     (. promised-fs writeFile file (.getText buffer))
-    (when id (respond! language {:id id, :params {:applied true}}))))
+    (when id (respond! language {:id id, :result {:applied true}}))))
 
 (defn- apply-changes! [id language file changes]
   (let [^js editor (-> @atom/open-paths (get file) first)]
     (if editor
-      (.transact editor
-        #(doseq [change changes] (apply-change-in-editor editor change)
-          (when id (respond! language {:id id, :params {:applied true}}))))
+      (do
+        (.transact editor
+          #(doseq [change changes] (apply-change-in-editor editor change)))
+        (when id (respond! language {:id id, :params {:applied true}})))
       (apply-changes-in-file id language file changes))))
 
 (defmethod callback-command "workspace/applyEdit" [{:keys [params id]} language]
@@ -235,12 +236,6 @@
                       {:textDocument {:uri uri}
                        :position {:line (.-row position)
                                   :character (.-column position)}})))))
-
-#_
-(.. js/atom -workspace (getActiveTextEditor)
-    (setTextInBufferRange #js [#js [0 0]
-                               #js [7 31]]
-                          "(ns generic-lsp.commands\n  (:require\n   [\"path\" :as path]\n   [\"url\" :as url]\n   [generic-lsp.atom :as atom]\n   [generic-lsp.known-servers :as known]\n   [generic-lsp.linter :as linter]\n   [generic-lsp.rpc :as rpc]\n   [promesa.core :as p]))"))
 
 (defn exec-command [lang command arguments]
   (send-command! lang

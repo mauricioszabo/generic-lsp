@@ -31,22 +31,3 @@
   #js {:grammarScopes #js ["*"]
        :getIntentions (fn [^js params]
                         (show-intentions (.-textEditor params) (.-bufferPosition params)))})
-          ; {textEditor, bufferPosition}) {
-          ;                                              // Highest priority is shown first of all
-          ;                                              // Note: You can also return a Promise
-          ;                                              return [
-          ;                                                      {
-          ;                                                        priority: 100,
-          ;                                                        icon: 'bucket',
-          ;                                                        class: 'custom-icon-class',
-          ;                                                        title: 'Choose color from colorpicker',
-          ;                                                        selected: function() {
-          ;                                                                              console.log('You clicked the color picker option')}}
-          ;
-          ;                                                      ,
-          ;                                                      {
-          ;                                                        priority: 200,
-          ;                                                        icon: 'tools',
-          ;                                                        title: 'Fix linter issue',
-          ;                                                        selected: function() {
-          ;                                                                              console.log('You chose to fix linter issue')}}]}})
