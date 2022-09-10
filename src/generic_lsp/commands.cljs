@@ -41,13 +41,19 @@
     (when id (respond! language {:id id, :result {:applied true}}))))
 
 (defn- apply-changes! [id language file changes]
-  (let [^js editor (-> @atom/open-paths (get file) first)]
+  (let [^js editor (-> @atom/open-paths (get file) first)
+        ordered-changes (->> changes
+                             (sort-by (fn [change]
+                                        (let [{:keys [start end]} (:range change)
+                                              in-pos (juxt :line :character)]
+                                          [(in-pos start) (in-pos end)])))
+                             reverse)]
     (if editor
       (do
         (.transact editor
-          #(doseq [change changes] (apply-change-in-editor editor change)))
+          #(doseq [change ordered-changes] (apply-change-in-editor editor change)))
         (when id (respond! language {:id id, :params {:applied true}})))
-      (apply-changes-in-file id language file changes))))
+      (apply-changes-in-file id language file ordered-changes))))
 
 (defmethod callback-command "workspace/applyEdit" [{:keys [params id]} language]
   (doseq [[file changes] (-> params :edit :changes)
