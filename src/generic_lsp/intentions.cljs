@@ -10,13 +10,16 @@
 (defn- show-intentions [^js text-editor, ^js position]
   (p/let [actions (cmds/code-actions text-editor position)]
     (->> actions
-         (map (fn [{:keys [title kind command]}]
-                {:title title
-                 :icon (icon-for kind)
-                 :selected (fn []
-                             (cmds/exec-command (.. text-editor getGrammar -name)
-                                                (:command command)
-                                                (:arguments command)))}))
+         (map (fn [{:keys [title kind command] :as possible-command}]
+                (let [command (if (string? command)
+                                possible-command
+                                command)]
+                  {:title title
+                   :icon (-> kind str icon-for)
+                   :selected (fn []
+                               (cmds/exec-command (.. text-editor getGrammar -name)
+                                                  (:command command)
+                                                  (:arguments command)))})))
          clj->js)))
 
 (defn- provide-intentions [^js text-editor, ^js position]
