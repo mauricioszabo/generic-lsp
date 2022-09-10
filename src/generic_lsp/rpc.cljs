@@ -5,7 +5,7 @@
 (declare treat-out)
 (defn- deliver-result! [server predefined-content-size]
   (let [content (subs (:buffer server) 0 predefined-content-size)
-        ; _ (println "content <--" content)
+        ; _ (println "<--" content)
         result (-> content js/JSON.parse (js->clj :keywordize-keys true))
         prom (get-in server [:pending (:id result)])]
 
