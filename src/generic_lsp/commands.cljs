@@ -4,7 +4,7 @@
             [generic-lsp.atom :as atom]
             [generic-lsp.known-servers :as known]
             [generic-lsp.linter :as linter]
-            ["atom" :refer [TextBuffer]]
+            ["atom" :refer [TextBuffer Range]]
             ["fs" :as fs]
             ["url" :as url]
             ["path" :as path]))
@@ -14,7 +14,20 @@
 
 (defmulti callback-command :method)
 
+(defonce ^:private diagnostics (atom {}))
+
+(defn- to-range [range]
+  (let [{:keys [start end]} range]
+    (Range. #js [(:line start) (:character start)]
+            #js [(:line end) (:character end)])))
+
 (defmethod callback-command "textDocument/publishDiagnostics" [{:keys [params]} _lang]
+  (swap! diagnostics (fn [diags]
+                       (if (-> params :diagnostics empty?)
+                         (dissoc diags (:uri params))
+                         (assoc diags (:uri params) (->> params
+                                                         :diagnostics
+                                                         (map #(update % :range to-range)))))))
   (linter/set-message! params))
 
 (defn respond! [language message]
@@ -22,21 +35,13 @@
     (rpc/raw-ish-send! server message)))
 
 (defn- apply-change-in-editor [^js editor, change]
-  (let [{:keys [start end]} (:range change)]
-    (.setTextInBufferRange editor
-                           #js [#js [(:line start) (:character start)]
-                                #js [(:line end) (:character end)]]
-                           (:newText change))))
+  (.setTextInBufferRange editor (to-range (:range change)) (:newText change)))
 
 (defn- apply-changes-in-file [id language file changes]
   (p/let [contents (. promised-fs readFile file)
           ^js buffer (new TextBuffer (str contents))]
-    (doseq [change changes
-            :let [{:keys [start end]} (:range change)]]
-      (.setTextInRange buffer
-                       #js [#js [(:line start) (:character start)]
-                            #js [(:line end) (:character end)]]
-                       (:newText change)))
+    (doseq [change changes]
+      (.setTextInRange buffer (to-range (:range change)) (:newText change)))
     (. promised-fs writeFile file (.getText buffer))
     (when id (respond! language {:id id, :result {:applied true}}))))
 
@@ -52,7 +57,7 @@
       (do
         (.transact editor
           #(doseq [change ordered-changes] (apply-change-in-editor editor change)))
-        (when id (respond! language {:id id, :params {:applied true}})))
+        (when id (respond! language {:id id, :result {:applied true}})))
       (apply-changes-in-file id language file ordered-changes))))
 
 (defmethod callback-command "workspace/applyEdit" [{:keys [params id]} language]
@@ -196,6 +201,9 @@
 (defn- have-capability? [lang name]
   (get-in @loaded-servers [lang :capabilities name]))
 
+(defn- ^:inline from-point [^js point]
+  {:line (.-row point), :character (.-column point)})
+
 (defn- go-to-thing! [capability command explanation]
   (let [lang (curr-editor-lang)
         editor (.. js/atom -workspace getActiveTextEditor)
@@ -203,8 +211,7 @@
     (if (have-capability? lang capability)
       (p/let [res (send-command! lang command
                                  {:textDocument {:uri (-> editor .getPath file->uri)}
-                                  :position {:line (.-row position)
-                                             :character (.-column position)}})]
+                                  :position (from-point position)})]
         (when (-> res :result not-empty) res))
       (atom/warn! (str "Language " lang " does not support " explanation)))))
 
@@ -240,8 +247,7 @@
       (p/do!
        (send-command! lang "textDocument/completion"
                       {:textDocument {:uri uri}
-                       :position {:line (.-row position)
-                                  :character (.-column position)}})))))
+                       :position (from-point position)})))))
 
 (defn exec-command [lang command arguments]
   (send-command! lang
@@ -249,15 +255,21 @@
                  {:command command
                   :arguments arguments}))
 
+(defn- from-atom-range [^js range]
+  {:start (-> range .-start from-point)
+   :end (-> range .-end from-point)})
+
 (defn code-actions [^js editor, ^js position]
-  (p/let [pos {:line (.-row position) :character (.-column position)}
+  (p/let [pos (from-point position)
           uri (-> editor .getPath file->uri)
+          diagnostics (->> (get @diagnostics uri)
+                           (filter #(-> % :range ^js (.containsPoint position)))
+                           (map #(update % :range from-atom-range)))
           res (send-command! (.. editor getGrammar -name)
                              "textDocument/codeAction"
                              {:textDocument {:uri uri}
-                              :range {:start pos
-                                      :end pos}
-                              :context {:diagnostics []}})]
+                              :range {:start pos :end pos}
+                              :context {:diagnostics diagnostics}})]
     (:result res)))
 
 (defn format-doc! []
@@ -269,10 +281,7 @@
     (if (have-capability? lang :documentRangeFormattingProvider)
       (p/let [res (send-command! lang "textDocument/rangeFormatting"
                                  {:textDocument {:uri (-> editor .getPath file->uri)}
-                                  :range {:start {:line (.. position -start -row)
-                                                  :character (.. position -start -column)}
-                                          :end {:line (.. position -end -row)
-                                                :character (.. position -end -column)}}
+                                  :range (from-atom-range position)
                                   :options {:tabSize tab-size
                                             :insertSpaces spaces?}})]
 
