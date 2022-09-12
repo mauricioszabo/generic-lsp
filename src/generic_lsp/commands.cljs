@@ -68,7 +68,7 @@
 (defmethod callback-command :default [params _language]
   (prn :UNUSED-COMMAND params))
 
-(defn- file->uri [file] (str (url/pathToFileURL file)))
+(defn file->uri [file] (str (url/pathToFileURL file)))
 
 (declare open-document!)
 (defn- init-lsp [language server open-editors]
@@ -204,14 +204,26 @@
 (defn- ^:inline from-point [^js point]
   {:line (.-row point), :character (.-column point)})
 
+(defn position-from-editor [^js editor]
+  (let [uri (-> editor .getPath file->uri)
+        position (.getCursorBufferPosition editor)]
+    {:textDocument {:uri uri}
+     :position (from-point position)}))
+
+(defn- from-atom-range [^js range]
+  {:start (-> range .-start from-point)
+   :end (-> range .-end from-point)})
+
+(defn location-from-editor [^js editor]
+  (let [range (.getSelectedBufferRange editor)]
+    {:textDocument {:uri (-> editor .getPath file->uri)}
+     :range (from-atom-range range)}))
+
 (defn- go-to-thing! [capability command explanation]
   (let [lang (curr-editor-lang)
-        editor (.. js/atom -workspace getActiveTextEditor)
-        position (.getCursorBufferPosition editor)]
+        editor (.. js/atom -workspace getActiveTextEditor)]
     (if (have-capability? lang capability)
-      (p/let [res (send-command! lang command
-                                 {:textDocument {:uri (-> editor .getPath file->uri)}
-                                  :position (from-point position)})]
+      (p/let [res (send-command! lang command (position-from-editor editor))]
         (when (-> res :result not-empty) res))
       (atom/warn! (str "Language " lang " does not support " explanation)))))
 
@@ -240,24 +252,17 @@
         (atom/warn! "No type declaration found")))))
 
 (defn autocomplete [^js editor]
-  (let [lang (.. editor getGrammar -name)
-        position (.getCursorBufferPosition editor)
-        uri (some-> editor .getPath file->uri)]
+  (let [lang (.. editor getGrammar -name)]
     (when (have-capability? lang :completionProvider)
       (p/do!
        (send-command! lang "textDocument/completion"
-                      {:textDocument {:uri uri}
-                       :position (from-point position)})))))
+                      (position-from-editor editor))))))
 
 (defn exec-command [lang command arguments]
   (send-command! lang
                  "workspace/executeCommand"
                  {:command command
                   :arguments arguments}))
-
-(defn- from-atom-range [^js range]
-  {:start (-> range .-start from-point)
-   :end (-> range .-end from-point)})
 
 (defn code-actions [^js editor, ^js position]
   (p/let [pos (from-point position)
