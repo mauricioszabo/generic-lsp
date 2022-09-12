@@ -12,7 +12,7 @@
             :exports {:activate generic-lsp.core/activate
                       :deactivate generic-lsp.core/deactivate
 
-                      :lsp-provider
+                      :provider
                       generic-lsp.provider/provider
 
                       :status-bar-consumer

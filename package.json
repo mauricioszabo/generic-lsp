@@ -11,7 +11,7 @@
   "providedServices": {
     "lsp.command": {
       "versions": {
-        "0.1.0": "lsp_provider"
+        "0.1.0": "provider"
       }
     },
     "autocomplete.provider": {

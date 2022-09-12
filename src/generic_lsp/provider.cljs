@@ -19,7 +19,7 @@
   ([editor] (clj->js (cmds/location-from-editor editor))))
 
 (def provider
-  #js {:command command!
+  #js {:runCommand command!
        :getServerFromEditor from-editor
        :uriFromFile cmds/file->uri
        :locationFromEditor location-from-editor
