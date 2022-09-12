@@ -78,7 +78,7 @@
                              (map (fn [path]
                                     {:uri (file->uri path)
                                      :name (path/basename path)}))
-                             into-array)
+                             clj->js)
           init-res (rpc/send! server "initialize"
                               {:processId nil
                                :clientInfo {:name "Pulsar"}
@@ -96,7 +96,7 @@
                                                              :definition {}
                                                              :codeAction {}
                                                              :typeDefinition {}}}
-                               :rootUri (-> workpace-dirs first :uri)
+                               :rootUri (-> workpace-dirs first .-uri)
                                :workspaceFolders workpace-dirs})]
 
     (swap! loaded-servers assoc language {:server server
@@ -112,17 +112,23 @@
 (defn start-lsp-server!
   ([open-editors] (start-lsp-server! open-editors (curr-editor-lang)))
   ([open-editors language]
-   (let [server (get known/servers language)]
-     (case (:type server)
-       :spawn (let [server (rpc/spawn-server!
-                            (:binary server)
-                            (assoc (:params server)
-                                   :args (:args server [])
-                                   ; :on-command #(println "<--" %)
-                                   :on-unknown-command #(callback-command % language)))]
-                (init-lsp language server open-editors)
-                (atom/info! (str "Connected server for " language)))
+   (let [server (get known/servers language)
+         connection
+         (case (:type server)
+           :spawn (rpc/spawn-server!
+                   (:binary server)
+                   (assoc (:params server)
+                          :args (:args server [])
+                          :on-unknown-command #(callback-command % language)))
+           :network (rpc/connect-server! "localhost" (:port server)
+                     {:on-unknown-command #(callback-command % language)})
+           nil)]
+     (if connection
+       (do
+         (init-lsp language connection open-editors)
+         (atom/info! (str "Connected server for " language)))
        (atom/error! (str "Don't know how to run a LSP server for " language))))))
+
 
 (defn stop-lsp-server!
   ([] (stop-lsp-server! (curr-editor-lang)))
