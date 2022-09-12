@@ -1,11 +1,12 @@
 (ns generic-lsp.rpc
   (:require [promesa.core :as p]
+            ["buffer" :refer [Buffer]]
             ["child_process" :as cp]))
 
 (declare treat-out)
 (defn- deliver-result! [server predefined-content-size]
-  (let [content (subs (:buffer server) 0 predefined-content-size)
-        ; _ (println "<--" content)
+  (let [content (.slice (:buffer server) 0 predefined-content-size)
+        ; _ (println "<--" (str content))
         result (-> content js/JSON.parse (js->clj :keywordize-keys true))
         prom (get-in server [:pending (:id result)])]
 
@@ -15,26 +16,26 @@
       ((:on-unknown-command server) result))
     (-> server
         (update :pending dissoc (:id result))
-        (update :buffer subs predefined-content-size)
+        (update :buffer #(.slice % predefined-content-size))
         (dissoc :content-size))))
 
 (defn- treat-out [server data]
-  (let [buffer (str (:buffer server) data)
+  (let [buffer (.concat Buffer #js [(:buffer server) data])
         server (assoc server :buffer buffer)
         predefined-content-size (:content-size server)]
 
-    (if predefined-content-size
-      (if (-> buffer count (>= predefined-content-size))
-        (recur (deliver-result! server predefined-content-size) "")
-        server)
+   (if predefined-content-size
+     (if (-> buffer .-length (>= predefined-content-size))
+       (recur (deliver-result! server predefined-content-size) (.from Buffer ""))
+       server)
 
-      (if-let [[header content-size] (re-find #"(?i)content-length\s*:\s+(\d+)\r\n\r\n" buffer)]
-        (recur
-          (-> server
-              (assoc :content-size (js/parseInt content-size))
-              (update :buffer subs (count header)))
-          "")
-        server))))
+     (if-let [[header content-size] (re-find #"(?i)content-length\s*:\s+(\d+)\r\n\r\n" (str buffer))]
+       (recur
+         (-> server
+             (assoc :content-size (js/parseInt content-size))
+             (update :buffer #(.slice % (count header))))
+         (.from Buffer ""))
+       server))))
 
 (defn spawn-server! [command {:keys [args on-command on-unknown-command]}]
   (let [server (cp/spawn command (into-array args) #js {:cwd (first (.. js/atom -project getPaths))})
@@ -42,7 +43,7 @@
                    :on-command (or on-command identity)
                    :on-unknown-command (or on-unknown-command identity)
                    :pending {}
-                   :buffer ""})]
+                   :buffer (.from Buffer "")})]
     (.. server -stdout (on "data" #(swap! res treat-out %)))
     ; (.. server -stderr (on "data" #(println (str  %))))
     res))
