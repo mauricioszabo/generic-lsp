@@ -18,7 +18,7 @@
   ([] (clj->js (cmds/location-from-editor (active-editor!))))
   ([editor] (clj->js (cmds/location-from-editor editor))))
 
-(defn provider []
+(def provider
   #js {:command command!
        :getServerFromEditor from-editor
        :uriFromFile cmds/file->uri
