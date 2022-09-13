@@ -15,7 +15,7 @@
     (. ^js @linter clearMessages)
     (consumer s)))
 
-(def ^:private severities ["error" "warning" "info"])
+(def ^:private severities ["error" "warning" "info" "info"])
 
 (defn set-message! [lsp-message]
   (let [^js linter @linter

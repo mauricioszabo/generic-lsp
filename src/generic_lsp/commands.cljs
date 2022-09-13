@@ -61,9 +61,13 @@
       (apply-changes-in-file id language file ordered-changes))))
 
 (defmethod callback-command "workspace/applyEdit" [{:keys [params id]} language]
-  (doseq [[file changes] (-> params :edit :changes)
-          :let [file (-> file str (subs 1) url/fileURLToPath)]]
-    (apply-changes! id language file changes)))
+  (if-let [changes (-> params :edit :changes)]
+    (doseq [[file changes] changes
+            :let [file (-> file str (subs 1) url/fileURLToPath)]]
+      (apply-changes! id language file changes))
+    (doseq [change (-> params :edit :documentChanges)
+            :let [file (-> change :textDocument :uri url/fileURLToPath)]]
+      (apply-changes! id language file (:edits change)))))
 
 (defmethod callback-command :default [params _language]
   (prn :UNUSED-COMMAND params))

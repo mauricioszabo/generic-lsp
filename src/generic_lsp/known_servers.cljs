@@ -10,5 +10,6 @@
    "C" {:type :spawn
         :args []
         :binary "clangd"}
-   "JavaScript" {:type :network
-                 :port 2089}})
+   "JavaScript" {:type :spawn
+                 :args ["--stdio"]
+                 :binary "typescript-language-server"}})
