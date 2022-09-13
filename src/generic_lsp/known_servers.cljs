@@ -12,4 +12,7 @@
         :binary "clangd"}
    "JavaScript" {:type :spawn
                  :args ["--stdio"]
+                 :binary "typescript-language-server"}
+   "TypeScript" {:type :spawn
+                 :args ["--stdio"]
                  :binary "typescript-language-server"}})
