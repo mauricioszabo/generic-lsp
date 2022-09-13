@@ -1,11 +1,13 @@
 (ns generic-lsp.rpc
   (:require [promesa.core :as p]
-            ["child_process" :as cp]))
+            ["buffer" :refer [Buffer]]
+            ["child_process" :as cp]
+            ["net" :as net]))
 
 (declare treat-out)
 (defn- deliver-result! [server predefined-content-size]
-  (let [content (subs (:buffer server) 0 predefined-content-size)
-        ; _ (println "<--" content)
+  (let [content (.slice (:buffer server) 0 predefined-content-size)
+        ; _ (println "<--" (str content))
         result (-> content js/JSON.parse (js->clj :keywordize-keys true))
         prom (get-in server [:pending (:id result)])]
 
@@ -15,46 +17,70 @@
       ((:on-unknown-command server) result))
     (-> server
         (update :pending dissoc (:id result))
-        (update :buffer subs predefined-content-size)
+        (update :buffer #(.slice % predefined-content-size))
         (dissoc :content-size))))
 
 (defn- treat-out [server data]
-  (let [buffer (str (:buffer server) data)
+  (let [buffer (.concat Buffer #js [(:buffer server) data])
         server (assoc server :buffer buffer)
         predefined-content-size (:content-size server)]
 
-    (if predefined-content-size
-      (if (-> buffer count (>= predefined-content-size))
-        (recur (deliver-result! server predefined-content-size) "")
-        server)
+   (if predefined-content-size
+     (if (-> buffer .-length (>= predefined-content-size))
+       (recur (deliver-result! server predefined-content-size) (.from Buffer ""))
+       server)
 
-      (if-let [[header content-size] (re-find #"(?i)content-length\s*:\s+(\d+)\r\n\r\n" buffer)]
-        (recur
-          (-> server
-              (assoc :content-size (js/parseInt content-size))
-              (update :buffer subs (count header)))
-          "")
-        server))))
+     (if-let [[header content-size] (re-find #"(?i)content-length\s*:\s+(\d+)\r\n\r\n" (str buffer))]
+       (recur
+         (-> server
+             (assoc :content-size (js/parseInt content-size))
+             (update :buffer #(.slice % (count header))))
+         (.from Buffer ""))
+       server))))
 
-(defn spawn-server! [command {:keys [args on-command on-unknown-command]}]
-  (let [server (cp/spawn command (into-array args) #js {:cwd (first (.. js/atom -project getPaths))})
-        res (atom {:server server
-                   :on-command (or on-command identity)
-                   :on-unknown-command (or on-unknown-command identity)
-                   :pending {}
-                   :buffer ""})]
+(defprotocol RawSend
+  (raw-send! [this contents])
+  (-stop-server! [this]))
+
+(defrecord Spawn [server]
+  RawSend
+  (raw-send! [_ contents] (.. ^js server -stdin (write (str contents))))
+  (-stop-server! [_] (.kill ^js server)))
+
+(defrecord Network [server]
+  RawSend
+  (raw-send! [_ contents] (.write ^js server (str contents)))
+  (-stop-server! [_] (.end ^js server)))
+
+(defn- prepare-server [{:keys [on-command on-unknown-command]}]
+  {:on-command (or on-command identity)
+   :on-unknown-command (or on-unknown-command identity)
+   :pending {}
+   :buffer (.from Buffer "")})
+
+(defn spawn-server! [command params]
+  (let [args (:args params)
+        server (cp/spawn command (into-array args) #js {:cwd (first (.. js/atom -project getPaths))})
+        res (atom (assoc (prepare-server params) :server (->Spawn server)))]
     (.. server -stdout (on "data" #(swap! res treat-out %)))
     ; (.. server -stderr (on "data" #(println (str  %))))
+    res))
+
+(defn connect-server! [host port params]
+  (let [server (doto (. net createConnection port host))
+        server-elems (prepare-server params)
+        res (atom (assoc server-elems :server (->Network server)))]
+    (.on server "data" #(swap! res treat-out %))
     res))
 
 (defn raw-ish-send! [server params]
   (let [message (-> params
                     (assoc :jsonrpc "2.0")
                     clj->js
-                    js/JSON.stringify)
-        ^js s (:server @server)]
+                    js/JSON.stringify)]
     ; (println "-->" message)
-    (.. s -stdin (write (str "Content-Length: " (count message) "\r\n\r\n" message)))
+    (raw-send! (:server @server)
+               (str "Content-Length: " (count message) "\r\n\r\n" message))
     nil))
 
 (defn send! [server command params]
@@ -70,4 +96,4 @@
   (raw-ish-send! server {:method command, :params params}))
 
 (defn stop-server! [server]
-  (.kill ^js (:server @server)))
+  (-stop-server! ^js (:server @server)))

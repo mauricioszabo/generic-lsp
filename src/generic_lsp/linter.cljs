@@ -1,6 +1,6 @@
 (ns generic-lsp.linter
-  (:require [generic-lsp.atom :refer [subscriptions]]
-            ["url" :as url]))
+  (:require ["url" :as url]
+            [generic-lsp.atom :refer [subscriptions]]))
 
 (defonce service (atom nil))
 (defonce linter (atom nil))
@@ -15,13 +15,13 @@
     (. ^js @linter clearMessages)
     (consumer s)))
 
-(def ^:private severities ["error" "warning" "info"])
+(def ^:private severities ["error" "warning" "info" "info"])
 
 (defn set-message! [lsp-message]
   (let [^js linter @linter
         diags (:diagnostics lsp-message)
         file (-> lsp-message :uri url/fileURLToPath)]
-    (when linter
+    (when (and linter file)
       (.setMessages linter
                     file
                     (->> diags

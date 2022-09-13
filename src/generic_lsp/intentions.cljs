@@ -22,7 +22,7 @@
                                                   (:arguments command)))})))
          clj->js)))
 
-(defn- provide-intentions [^js text-editor, ^js position]
+(defn- provide-intentions [^js _editor, ^js position]
   (prn :P position))
 
 (defn provider []

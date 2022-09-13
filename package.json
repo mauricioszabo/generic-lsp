@@ -9,6 +9,11 @@
   },
   "repository": "https://github.com/mauricioszabo/generic-lsp",
   "providedServices": {
+    "lsp.command": {
+      "versions": {
+        "0.1.0": "provider"
+      }
+    },
     "autocomplete.provider": {
       "versions": {
         "4.0.0": "complete_provider"
