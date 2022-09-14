@@ -8,9 +8,11 @@
   (.. js/atom -notifications (addInfo message))
   nil)
 
-(defn error! [message]
-  (.. js/atom -notifications (addError message))
-  nil)
+(defn error!
+  ([message] (error! message nil))
+  ([message detail]
+   (.. js/atom -notifications (addError message #js {:detail detail}))
+   nil))
 
 (defn warn! [message]
   (.. js/atom -notifications (addWarning message))

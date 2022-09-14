@@ -110,38 +110,42 @@
             :when (= language (.. editor getGrammar -name))]
       (open-document! editor))))
 
-
 (defn- curr-editor-lang [] (.. js/atom -workspace getActiveTextEditor getGrammar -name))
 
 (defn start-lsp-server!
   ([open-editors] (start-lsp-server! open-editors (curr-editor-lang)))
   ([open-editors language]
-   (let [server (get known/servers language)
-         connection
-         (case (:type server)
-           :spawn (rpc/spawn-server!
-                   (:binary server)
-                   (assoc (:params server)
-                          :args (:args server [])
-                          :on-unknown-command #(callback-command % language)))
-           :network (rpc/connect-server! "localhost" (:port server)
-                     {:on-unknown-command #(callback-command % language)})
-           nil)]
+   (let [params {:on-unknown-command #(callback-command % language)
+                 :on-close #(do
+                              (linter/clear-messages! language)
+                              (swap! loaded-servers dissoc language)
+                              (atom/info! (str "Disconnected server for " language)))}
+         server (get known/servers language)
+         connection (case (:type server)
+                      :spawn (rpc/spawn-server!
+                              (:binary server)
+                              (merge params
+                                     (:params server)
+                                     {:args (:args server [])}))
+                      :network (rpc/connect-server! "localhost" (:port server)
+                                                    params)
+                      nil)]
      (if connection
-       (do
-         (init-lsp language connection open-editors)
-         (atom/info! (str "Connected server for " language)))
+       (-> connection
+           (p/then (fn [connection]
+                     (init-lsp language connection open-editors)
+                     (atom/info! (str "Connected server for " language))))
+           (p/catch (fn [error]
+                      (atom/error! (str "Could NOT connect a server for " language)
+                                   (.-message error)))))
        (atom/error! (str "Don't know how to run a LSP server for " language))))))
 
 
 (defn stop-lsp-server!
   ([] (stop-lsp-server! (curr-editor-lang)))
   ([language]
-   (if (some-> @loaded-servers (get-in [language :server]) rpc/stop-server!)
-     (atom/info! (str "Disconnected server for " language))
-     (atom/warn! (str "Didn't find a server for " language)))
-   (linter/clear-messages! language)
-   (swap! loaded-servers dissoc language)))
+   (when-not (some-> @loaded-servers (get-in [language :server]) rpc/stop-server!)
+     (atom/warn! (str "Didn't find a server for " language)))))
 
 (defn send-command! [language command params]
   (when-let [server (get-in @loaded-servers [language :server])]

@@ -59,12 +59,19 @@
    :buffer (.from Buffer "")})
 
 (defn spawn-server! [command params]
-  (let [args (:args params)
+  (let [p (p/deferred)
+        args (:args params)
         server (cp/spawn command (into-array args) #js {:cwd (first (.. js/atom -project getPaths))})
-        res (atom (assoc (prepare-server params) :server (->Spawn server)))]
+        res (atom (assoc (prepare-server params) :server (->Spawn server)))
+        close (:on-close params)
+        success? (.-pid server)]
     (.. server -stdout (on "data" #(swap! res treat-out %)))
+    (.. server (on "error" #(p/reject! p %)))
     ; (.. server -stderr (on "data" #(println (str  %))))
-    res))
+    (when success?
+      (.. server (on "close" #(close)))
+      (p/resolve! p res))
+    p))
 
 (defn connect-server! [host port params]
   (let [server (doto (. net createConnection port host))
