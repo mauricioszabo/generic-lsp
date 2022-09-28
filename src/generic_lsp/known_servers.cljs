@@ -15,4 +15,10 @@
                  :binary "typescript-language-server"}
    "TypeScript" {:type :spawn
                  :args ["--stdio"]
-                 :binary "typescript-language-server"}})
+                 :binary "typescript-language-server"}
+   "TypeScriptReact" {:type :spawn
+                      :args ["--stdio"]
+                      :binary "typescript-language-server"}
+   "Ruby" {:type :spawn
+           :args ["exec" "solargraph" "stdio"]
+           :binary "bundle"}})
