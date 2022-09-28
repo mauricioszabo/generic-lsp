@@ -1,4 +1,7 @@
-## 0.0.1 - First Release
+## 0.1.2 - More languages support
+- Ruby added
+
+## 0.1.0 - First Release
 - Start a "known LSP" server (Clojure for now)
 - Linter
 - Go To Definition
