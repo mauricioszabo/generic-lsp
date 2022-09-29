@@ -11,6 +11,7 @@
             :compiler-options {:infer-externs :auto}
             :exports {:activate generic-lsp.core/activate
                       :deactivate generic-lsp.core/deactivate
+                      :config generic-lsp.config/config
 
                       :provider
                       generic-lsp.provider/provider
