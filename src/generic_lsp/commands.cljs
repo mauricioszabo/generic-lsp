@@ -180,16 +180,14 @@
   (when-let [path (.getPath editor)]
     (let [language (.. editor getGrammar -name)
           sync-capabilities (get-in @loaded-servers [language :capabilities :textDocumentSync])
-          sync (get sync-support (:change sync-capabilities))]
-      (when (and (:openClose sync-capabilities)
-                 (not= :none sync))
-        (let [uri (file->uri path)
-              version (get @uri-versions uri 0)]
-          (swap! uri-versions update uri inc)
-          (notify! language "textDocument/didChange"
-                   {:textDocument {:uri uri
-                                   :version (inc version)}
-                    :contentChanges [{:text (.getText editor)}]}))))))
+          sync (get sync-support (:change sync-capabilities))
+          uri (file->uri path)
+          version (get @uri-versions uri 0)]
+      (swap! uri-versions update uri inc)
+      (notify! language "textDocument/didChange"
+               {:textDocument {:uri uri
+                               :version (inc version)}
+                :contentChanges [{:text (.getText editor)}]}))))
 
 (defn rename! [^js editor old-path]
   (let [language (.. editor getGrammar -name)

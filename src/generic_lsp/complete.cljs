@@ -46,10 +46,12 @@
 
 (defn- suggestions [^js data]
   (p/let [editor (.-editor data)
-          results (cmds/autocomplete editor)
-          prefix (get-prefix! editor)]
-    (->> results
-         :result
+          {:keys [result]} (cmds/autocomplete editor)
+          prefix (get-prefix! editor)
+          items (if-let [items (:items result)]
+                  items
+                  result)]
+    (->> items
          (map (fn [result]
                 {:text (:label result)
                  :type (some-> result :kind dec types)

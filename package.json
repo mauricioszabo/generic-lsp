@@ -1,8 +1,8 @@
 {
   "name": "generic-lsp",
   "main": "./lib/main.js",
-  "version": "0.1.0",
-  "description": "A short description of your package",
+  "version": "0.1.2",
+  "description": "A generic LSP package for Atom/Pulsar",
   "keywords": [],
   "activationCommands": {
     "atom-workspace": "generic-lsp:start-LSP-server"
