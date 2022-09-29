@@ -2,7 +2,6 @@
   (:require [promesa.core :as p]
             [generic-lsp.rpc :as rpc]
             [generic-lsp.atom :as atom]
-            [generic-lsp.known-servers :as known]
             [generic-lsp.linter :as linter]
             ["atom" :refer [TextBuffer Range]]
             ["fs" :as fs]
@@ -112,6 +111,13 @@
 
 (defn- curr-editor-lang [] (.. js/atom -workspace getActiveTextEditor getGrammar -name))
 
+(defn- get-server [language]
+  (-> js/atom
+      .-config
+      (.get "generic-lsp")
+      (aget language)
+      (js->clj :keywordize-keys true)))
+
 (defn start-lsp-server!
   ([open-editors] (start-lsp-server! open-editors (curr-editor-lang)))
   ([open-editors language]
@@ -120,16 +126,10 @@
                               (linter/clear-messages! language)
                               (swap! loaded-servers dissoc language)
                               (atom/info! (str "Disconnected server for " language)))}
-         server (get known/servers language)
-         connection (case (:type server)
-                      :spawn (rpc/spawn-server!
-                              (:binary server)
-                              (merge params
-                                     (:params server)
-                                     {:args (:args server [])}))
-                      :network (rpc/connect-server! "localhost" (:port server)
-                                                    params)
-                      nil)]
+         server (get-server language)
+         connection (when server
+                      (rpc/spawn-server! (:command server)
+                                         (assoc params :args (:args server []))))]
      (if connection
        (-> connection
            (p/then (fn [connection]
