@@ -21,5 +21,9 @@
                                                  :type "array"
                                                  :default (:args server)
                                                  :order 2}}})))
-                 {})
+                 {:debug {:title "Debug LSP messages?"
+                          :description "LSP messages will be sent to the console, over devtools. Run 'Toggle Devtools' command to see them"
+                          :type "boolean"
+                          :default false
+                          :order 0}})
          clj->js)))
