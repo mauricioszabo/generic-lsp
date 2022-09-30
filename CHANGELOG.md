@@ -1,4 +1,5 @@
 ## 0.1.2 - More languages support
+- Adding preliminary snippet support
 - Ruby added
 - Added configuration that allows the user to define their own LSP servers to connect
 
