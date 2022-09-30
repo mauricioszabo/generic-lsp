@@ -1,6 +1,6 @@
 (ns generic-lsp.complete
-  (:require [promesa.core :as p]
-            [generic-lsp.commands :as cmds]))
+  (:require [generic-lsp.commands :as cmds]
+            [promesa.core :as p]))
 
 ;; TODO: Atom/Pulsar does not have icons for all elements that are available on LSP,
 ;; and there are some that are not used at all, like builtin, import and require.
@@ -44,8 +44,17 @@
       (.getTextInBufferRange editor #js [#js [current-row start-of-word]
                                          #js [current-row current-column]]))))
 
+(defn- ^:inline normalize-prefix [to-insert prefix]
+  (loop [prefix prefix]
+    (cond
+      (= (first to-insert) (first prefix)) prefix
+      (empty? prefix) nil
+      :else (recur (subs prefix 1)))))
+
 (defn- suggestions [^js data]
-  (p/let [editor (.-editor data)
+  (when-not (.-activatedManually data) (cmds/sync-document! (.-editor data) {}))
+
+  (p/let [^js editor (.-editor data)
           {:keys [result]} (cmds/autocomplete editor)
           prefix (get-prefix! editor)
           items (if-let [items (:items result)]
@@ -53,16 +62,25 @@
                   result)]
     (->> items
          (map (fn [result]
-                {:text (:label result)
-                 :type (some-> result :kind dec types)
-                 :replacementPrefix prefix}))
+                (let [to-insert (:insertText result (:label result))
+                      snippet? (-> result :insertTextFormat (= 2))
+                      common {:displayText (:label result)
+                              :type (some-> result :kind dec types)
+                              :description (:detail result)
+                              :replacementPrefix (normalize-prefix to-insert prefix)}]
+                  (if snippet?
+                    (assoc common :snippet to-insert)
+                    (assoc common :text to-insert)))))
          not-empty
          clj->js)))
+
 
 (defn- detailed-suggestion [_data])
   ; (prn :detailed data))
 
-(defn provider []
+(defn provider
+  "Provider for autocomplete"
+  []
   #js {:selector ".source"
        :disableForSelector ".source .comment"
 
