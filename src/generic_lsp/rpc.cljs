@@ -7,7 +7,8 @@
 (declare treat-out)
 (defn- deliver-result! [server predefined-content-size]
   (let [content (.slice (:buffer server) 0 predefined-content-size)
-        ; _ (println "<--" (str content))
+        _ (when (.. js/atom -config (get "generic-lsp.debug"))
+            (println "<--" (str content)))
         result (-> content js/JSON.parse (js->clj :keywordize-keys true))
         prom (get-in server [:pending (:id result)])]
 
@@ -85,7 +86,8 @@
                     (assoc :jsonrpc "2.0")
                     clj->js
                     js/JSON.stringify)]
-    ; (println "-->" message)
+    (when (.. js/atom -config (get "generic-lsp.debug"))
+      (println "-->" message))
     (raw-send! (:server @server)
                (str "Content-Length: " (count message) "\r\n\r\n" message))
     nil))
