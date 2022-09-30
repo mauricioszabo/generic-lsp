@@ -1,24 +1,19 @@
 (ns generic-lsp.known-servers)
 
 (def servers
-  {"Clojure" {:type :spawn
-              :args ["--log-path" "/tmp/lsp.log"]
+  {"Clojure" {:args []
               :binary "clojure-lsp"}
-   "C++" {:type :spawn
-          :args []
+   "C++" {:args []
           :binary "clangd"}
-   "C" {:type :spawn
-        :args []
+   "C" {:args []
         :binary "clangd"}
-   "JavaScript" {:type :spawn
-                 :args ["--stdio"]
+   "JavaScript" {:args ["--stdio"]
                  :binary "typescript-language-server"}
-   "TypeScript" {:type :spawn
-                 :args ["--stdio"]
+   "TypeScript" {:args ["--stdio"]
                  :binary "typescript-language-server"}
-   "TypeScriptReact" {:type :spawn
-                      :args ["--stdio"]
+   "TypeScriptReact" {:args ["--stdio"]
                       :binary "typescript-language-server"}
-   "Ruby" {:type :spawn
-           :args ["exec" "solargraph" "stdio"]
-           :binary "bundle"}})
+   "Ruby" {:args ["exec" "solargraph" "stdio"]
+           :binary "bundle"}
+   "Java" {:binary "jdtls"
+           :args []}})

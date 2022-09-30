@@ -127,7 +127,7 @@
                               (swap! loaded-servers dissoc language)
                               (atom/info! (str "Disconnected server for " language)))}
          server (get-server language)
-         connection (when server
+         connection (when-not (empty? (:command server))
                       (rpc/spawn-server! (:command server)
                                          (assoc params :args (:args server []))))]
      (if connection
@@ -179,8 +179,6 @@
 (defn sync-document! [^js editor, ^js _changes]
   (when-let [path (.getPath editor)]
     (let [language (.. editor getGrammar -name)
-          sync-capabilities (get-in @loaded-servers [language :capabilities :textDocumentSync])
-          sync (get sync-support (:change sync-capabilities))
           uri (file->uri path)
           version (get @uri-versions uri 0)]
       (swap! uri-versions update uri inc)
