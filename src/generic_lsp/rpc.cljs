@@ -68,7 +68,8 @@
         success? (.-pid server)]
     (.. server -stdout (on "data" #(swap! res treat-out %)))
     (.. server (on "error" #(p/reject! p %)))
-    ; (.. server -stderr (on "data" #(println (str  %))))
+    (.. server -stderr (on "data" #(when (.. js/atom -config (get "generic-lsp.debug"))
+                                     (js/console.error (str %)))))
     (when success?
       (.. server (on "close" #(close)))
       (p/resolve! p res))
@@ -85,11 +86,11 @@
   (let [message (-> params
                     (assoc :jsonrpc "2.0")
                     clj->js
-                    js/JSON.stringify)]
+                    js/JSON.stringify)
+        size (-> message js/Buffer.from .-length)]
     (when (.. js/atom -config (get "generic-lsp.debug"))
       (println "-->" message))
-    (raw-send! (:server @server)
-               (str "Content-Length: " (count message) "\r\n\r\n" message))
+    (raw-send! (:server @server) (str "Content-Length: " size "\r\n\r\n" message))
     nil))
 
 (defn send! [server command params]
