@@ -98,10 +98,12 @@
                                                              :rangeFormatting {}
                                                              :definition {}
                                                              :codeAction {}
-                                                             :typeDefinition {}}}
+                                                             :typeDefinition {}}
+                                              :workspace {:workspaceEdit {:documentChanges true}}}
                                :rootUri (-> workpace-dirs first .-uri)
                                :workspaceFolders workpace-dirs})]
 
+    (rpc/notify! server "initialized" {})
     (swap! loaded-servers assoc language {:server server
                                           :capabilities (-> init-res :result :capabilities)})
     (doseq [[_ editors] open-editors
@@ -162,11 +164,11 @@
   (when-let [path (.getPath editor)]
     (let [language (.. editor getGrammar -name)
           uri (file->uri path)
-          version (get @uri-versions uri 0)]
+          version (get @uri-versions uri 1)]
       (notify! language "textDocument/didOpen"
                {:textDocument {:uri uri
-                               :version version
                                :languageId (.toLowerCase language)
+                               :version version
                                :text (.getText editor)}}))))
 
 (defn close-document! [^js editor]
@@ -180,7 +182,7 @@
   (when-let [path (.getPath editor)]
     (let [language (.. editor getGrammar -name)
           uri (file->uri path)
-          version (get @uri-versions uri 0)]
+          version (get @uri-versions uri 1)]
       (swap! uri-versions update uri inc)
       (notify! language "textDocument/didChange"
                {:textDocument {:uri uri
@@ -303,3 +305,27 @@
         (when-let [changes (-> res :result not-empty)]
           (apply-changes! nil lang (.getPath editor) changes)))
       (atom/warn! (str "Language " lang " does not support formatting")))))
+
+(defn- normalize-marked-string [marked-string]
+  (if (string? marked-string)
+    {:type "plaintext" :value marked-string}
+    {:type "markdown" :value (str "```"
+                                  (:language marked-string)
+                                  "\n" (:value marked-string)
+                                  "\n```")}))
+
+(defn hover! [^js editor]
+  (let [lang (.. editor getGrammar -name)
+        position (.getSelectedBufferRange editor)
+        tab-size (.. js/atom -config (get "editor.tabLength"))
+        spaces? (not= "hard" (.. js/atom -config (get "editor.tabType")))]
+    (if (have-capability? lang :documentRangeFormattingProvider)
+      (p/let [res (send-command! lang "textDocument/hover"
+                                 (position-from-editor editor))
+              contents (-> res :result :contents)]
+        (when-not (empty? contents)
+          (cond
+            ;; FIXME: parse all contents
+            (vector? contents) (map normalize-marked-string contents)
+            (-> contents :kind nil?) [(normalize-marked-string contents)]
+            :else [contents]))))))

@@ -16,4 +16,6 @@
    "Ruby" {:args ["exec" "solargraph" "stdio"]
            :binary "bundle"}
    "Java" {:binary "jdtls"
+           :args []}
+   "Rust" {:binary "rust-analyzer"
            :args []}})
