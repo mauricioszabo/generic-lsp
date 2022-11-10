@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -eu
+
+rm -R lib
+npm install
+npx shadow-cljs release package
+git checkout -b RELEASE-PREPARE-DELETE-THIS
+git add -f lib
+git rm -r src
+git commit -m 'Compiled release version'
+echo "Now tag the version, and push the tag. And then, DELETE this branch"
