@@ -18,4 +18,6 @@
    "Java" {:binary "jdtls"
            :args []}
    "Rust" {:binary "rust-analyzer"
-           :args []}})
+           :args []}
+   "Lua" {:binary "lua-language-server"
+          :args []}})
