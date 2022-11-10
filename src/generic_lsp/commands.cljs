@@ -11,6 +11,10 @@
 (def ^:private promised-fs (. fs -promises))
 (defonce loaded-servers (atom {}))
 
+(defn respond! [language message]
+  (when-let [server (get-in @loaded-servers [language :server])]
+    (rpc/raw-ish-send! server message)))
+
 (defmulti callback-command :method)
 
 (defonce ^:private diagnostics (atom {}))
@@ -20,6 +24,10 @@
     (Range. #js [(:line start) (:character start)]
             #js [(:line end) (:character end)])))
 
+(defmethod callback-command "workspace/configuration" [{:keys [id params]} lang]
+  (let [result (map #(do nil) (:items params))]
+    (respond! lang {:id id :result result})))
+
 (defmethod callback-command "textDocument/publishDiagnostics" [{:keys [params]} _lang]
   (swap! diagnostics (fn [diags]
                        (if (-> params :diagnostics empty?)
@@ -28,10 +36,6 @@
                                                          :diagnostics
                                                          (map #(update % :range to-range)))))))
   (linter/set-message! params))
-
-(defn respond! [language message]
-  (when-let [server (get-in @loaded-servers [language :server])]
-    (rpc/raw-ish-send! server message)))
 
 (defn- apply-change-in-editor [^js editor, change]
   (.setTextInBufferRange editor (to-range (:range change)) (:newText change)))
@@ -104,6 +108,8 @@
                                :workspaceFolders workpace-dirs})]
 
     (rpc/notify! server "initialized" {})
+    (rpc/notify! server "workspace/didChangeConfiguration" {})
+
     (swap! loaded-servers assoc language {:server server
                                           :capabilities (-> init-res :result :capabilities)})
     (doseq [[_ editors] open-editors
