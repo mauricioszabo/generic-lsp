@@ -28,6 +28,9 @@
                       :intentions-provide
                       generic-lsp.intentions/provider
 
+                      :datatip-consumer
+                      generic-lsp.datatip/consumer
+
                       :linter-consumer
                       generic-lsp.linter/consumer}
             :output-to "lib/main.js"}}}

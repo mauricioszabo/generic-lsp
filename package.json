@@ -36,6 +36,11 @@
         "^1.0.0": "status_bar_consumer"
       }
     },
+    "datatip": {
+      "versions": {
+        "0.1.0": "datatip_consumer"
+      }
+    },
     "linter-indie": {
       "versions": {
         "2.0.0": "linter_consumer"
