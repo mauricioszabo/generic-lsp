@@ -1,3 +1,8 @@
+## 0.1.3 - Rust and Lua
+- Adding support for rust-analyzer
+- Adding support for lua-language-server
+- Adding datatips if the package is present
+
 ## 0.1.2 - More languages support
 - Adding preliminary snippet support
 - Ruby added
