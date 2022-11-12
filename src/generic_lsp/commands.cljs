@@ -89,7 +89,7 @@
           init-res (rpc/send! server "initialize"
                               {:processId nil
                                :clientInfo {:name "Pulsar"}
-                               :locale "UTF-8"
+                               :locale "en"
                                :capabilities {:textDocument {:synchronization {:didSave true}
                                                              :completion {:contextSupport true
                                                                           :completionItem {:snippetSupport true
